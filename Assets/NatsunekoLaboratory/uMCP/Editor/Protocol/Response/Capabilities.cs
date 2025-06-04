@@ -6,8 +6,5 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Response
     {
         [JsonProperty("listChanged")]
         public bool ListChanged { get; set; }
-
-        [JsonProperty("subscribe")]
-        public bool? Subscribe { get; set; }
     }
 }

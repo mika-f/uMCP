@@ -44,7 +44,7 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Response
             if (pi.ParameterType.IsEnum) { }
 
             if (pi.ParameterType.IsArray)
-                schema.Items = new List<JsonSchema> { GenerateFromType(pi.ParameterType.GenericTypeArguments[0]) };
+                schema.Items = GenerateFromType(pi.ParameterType.GenericTypeArguments[0]);
 
             if (pi.GetCustomAttribute<DescriptionAttribute>() != null)
             {

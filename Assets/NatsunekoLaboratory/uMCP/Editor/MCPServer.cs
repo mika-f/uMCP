@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing.Imaging;
 using System.IO;
@@ -33,9 +34,20 @@ namespace NatsunekoLaboratory.uMCP
     {
         private static HttpListener _listener;
         private static bool _isRunning;
+        private static readonly ConcurrentDictionary<long, (JsonRpcRequest<JObject> Object, TaskCompletionSource<JsonRpcResponse> TaskCompletionSource)> _queue = new();
+        private static readonly object LockObj = new();
+        private static readonly List<MethodInfo> _tools;
+
+        private static readonly JsonSerializerSettings SerializerSettings = new()
+        {
+            NullValueHandling = NullValueHandling.Ignore
+        };
 
         static UnityAnimationMcp()
         {
+            var types = Assembly.GetAssembly(typeof(ToolList)).DefinedTypes.Where(w => w.GetCustomAttribute<McpServerToolTypeAttribute>() != null).ToList();
+            _tools = types.SelectMany(w => w.GetMethods().Where(v => v.GetCustomAttribute<McpServerToolAttribute>() != null)).ToList();
+
             StartServer();
             EditorApplication.quitting += StopServer;
         }
@@ -53,6 +65,7 @@ namespace NatsunekoLaboratory.uMCP
 
             Debug.Log("uMCP Server Started at http://localhost:7225/sse");
             Task.Run(ListenerLoop);
+            EditorApplication.update += ProcessCommands;
         }
 
         private static void StopServer()
@@ -111,20 +124,31 @@ namespace NatsunekoLaboratory.uMCP
 
                         try
                         {
-                            var obj = body?.Method switch
+                            switch (body?.Method)
                             {
-                                "initialize" => await HandleInitializeRequest(body),
-                                "notifications/initialized" => null,
-                                "tools/list" => await HandleToolListRequest(body),
-                                "tools/call" => await HandleToolCallRequest(body),
-                                null => null,
-                                _ => null
-                            };
+                                case "initialize":
+                                    await SendResponse(stream, await HandleInitializeRequest(body));
+                                    break;
 
-                            var json = JsonConvert.SerializeObject(obj);
-                            var data = Encoding.UTF8.GetBytes($"data: {json}\n\n");
-                            await stream.WriteAsync(data, 0, data.Length);
-                            await stream.FlushAsync();
+                                case "notifications/initialized":
+                                    // No response needed for this notification
+                                    break;
+
+                                case "tools/list":
+                                    await SendResponse(stream, await HandleToolListRequest(body));
+                                    break;
+
+                                case "tools/call":
+                                    await SendResponse(stream, await HandleToolCallRequest(body));
+                                    break;
+
+                                case null:
+                                    break;
+
+                                default:
+                                    Debug.LogWarning($"Unknown method: {body?.Method}");
+                                    break;
+                            }
                         }
                         catch (Exception e)
                         {
@@ -151,8 +175,8 @@ namespace NatsunekoLaboratory.uMCP
 
         private static async Task<JsonRpcResponse> HandleInitializeRequest(JsonRpcRequest<JObject> request)
         {
-            var result = await ServerCapabilities.CreateAsync();
-            return new JsonRpcSuccessResponse<ServerCapabilities> { JsonRpc = "2.0", Id = request.Id, Result = result };
+            var result = await Handshake.CreateAsync();
+            return new JsonRpcSuccessResponse<Handshake> { JsonRpc = "2.0", Id = request.Id, Result = result };
         }
 
         private static async Task<JsonRpcResponse> HandleToolListRequest(JsonRpcRequest<JObject> request)
@@ -163,58 +187,14 @@ namespace NatsunekoLaboratory.uMCP
 
         private static async Task<JsonRpcResponse> HandleToolCallRequest(JsonRpcRequest<JObject> request)
         {
-            var types = Assembly.GetAssembly(typeof(ToolList)).DefinedTypes.Where(w => w.GetCustomAttribute<McpServerToolTypeAttribute>() != null).ToList();
-            var tools = types.SelectMany(w => w.GetMethods().Where(v => v.GetCustomAttribute<McpServerToolAttribute>() != null));
-            var tool = tools.FirstOrDefault(w => w.Name == request.Params["name"]?.ToString());
-            if (tool == null)
-                return new JsonRpcErrorResponse<ErrorAboutTool>
-                {
-                    JsonRpc = "2.0",
-                    Id = request.Id,
-                    Error = new ErrorResponse<ErrorAboutTool>
-                    {
-                        Code = -32000,
-                        Message = "Tool not found",
-                        Data = new ErrorAboutTool { ToolName = request.Params["name"]?.ToString() }
-                    }
-                };
+            TaskCompletionSource<JsonRpcResponse> source = new();
 
-            var arguments = request.Params["arguments"];
-            var parameters = new List<object>();
-            foreach (var parameter in tool.GetParameters())
+            lock (LockObj)
             {
-                var argument = arguments?[parameter.Name];
-                if (argument == null && parameter.HasCustomAttribute<RequiredAttribute>())
-                    return new JsonRpcErrorResponse<ErrorAboutTool>
-                    {
-                        JsonRpc = "2.0",
-                        Id = request.Id,
-                        Error = new ErrorResponse<ErrorAboutTool>
-                        {
-                            Code = -32000,
-                            Message = $"Required argument '{parameter.Name}' is missing.",
-                            Data = new ErrorAboutTool { ToolName = tool.Name }
-                        }
-                    };
-
-                var value = parameter.ParameterType switch
-                {
-                    _ when parameter.ParameterType == typeof(string) => argument?.ToString(),
-                    _ when parameter.ParameterType == typeof(int) => argument?.ToObject<int>(),
-                    _ when parameter.ParameterType == typeof(long) => argument?.ToObject<long>(),
-                    _ when parameter.ParameterType == typeof(float) => argument?.ToObject<float>(),
-                    _ when parameter.ParameterType == typeof(double) => argument?.ToObject<double>(),
-                    _ when parameter.ParameterType == typeof(bool) => argument?.ToObject<bool>(),
-                    _ when parameter.ParameterType.IsEnum => Enum.Parse(parameter.ParameterType, argument?.ToString()),
-                    _ when parameter.ParameterType.IsArray => argument?.ToObject(parameter.ParameterType),
-                    _ => throw new ArgumentOutOfRangeException()
-                };
-
-                parameters.Add(value);
+                _queue[request.Id] = (request, source);
             }
 
-            var contents = ToContent(tool.Invoke(null, parameters.ToArray()));
-            return new JsonRpcSuccessResponse<CallToolResults> { JsonRpc = "2.0", Id = request.Id, Result = new CallToolResults { Content = contents.ToArray() } };
+            return await source.Task;
         }
 
         private static List<CallToolResultContent> ToContent(object content)
@@ -229,11 +209,102 @@ namespace NatsunekoLaboratory.uMCP
             };
         }
 
+
+        private static async Task SendResponse(Stream stream, object obj)
+        {
+            var json = JsonConvert.SerializeObject(obj, SerializerSettings);
+            var data = Encoding.UTF8.GetBytes($"data: {json}\n\n");
+            await stream.WriteAsync(data, 0, data.Length);
+            await stream.FlushAsync();
+        }
+
         private static JsonRpcRequest<T> GetRequest<T>(HttpListenerRequest request)
         {
             using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
             var json = reader.ReadToEnd();
             return JsonConvert.DeserializeObject<JsonRpcRequest<T>>(json);
+        }
+
+        private static void ProcessCommands()
+        {
+            lock (LockObj)
+            {
+                foreach (var item in _queue)
+                {
+                    var key = item.Key;
+                    var request = item.Value.Object;
+                    var source = item.Value.TaskCompletionSource;
+                    _queue.TryRemove(item.Key, out _);
+
+                    var tool = _tools.FirstOrDefault(w => w.Name == request.Params["name"]?.ToString());
+                    if (tool == null)
+                    {
+                        source.SetResult(new JsonRpcErrorResponse<ErrorAboutTool>
+                        {
+                            JsonRpc = "2.0",
+                            Id = request.Id,
+                            Error = new ErrorResponse<ErrorAboutTool>
+                            {
+                                Code = -32000,
+                                Message = "Tool not found",
+                                Data = new ErrorAboutTool { ToolName = request.Params["name"]?.ToString() }
+                            }
+                        });
+                        continue;
+                    }
+
+                    var arguments = request.Params["arguments"];
+                    var parameters = new List<object>();
+                    foreach (var parameter in tool.GetParameters())
+                    {
+                        var argument = arguments?[parameter.Name];
+                        if (argument == null && parameter.HasCustomAttribute<RequiredAttribute>())
+                        {
+                            source.SetResult(new JsonRpcErrorResponse<ErrorAboutTool>
+                            {
+                                JsonRpc = "2.0",
+                                Id = request.Id,
+                                Error = new ErrorResponse<ErrorAboutTool>
+                                {
+                                    Code = -32000,
+                                    Message = $"Required argument '{parameter.Name}' is missing.",
+                                    Data = new ErrorAboutTool { ToolName = tool.Name }
+                                }
+                            });
+                            goto c;
+                        }
+
+                        var value = parameter.ParameterType switch
+                        {
+                            _ when parameter.ParameterType == typeof(string) => argument?.ToString(),
+                            _ when parameter.ParameterType == typeof(int) => argument?.ToObject<int>(),
+                            _ when parameter.ParameterType == typeof(long) => argument?.ToObject<long>(),
+                            _ when parameter.ParameterType == typeof(float) => argument?.ToObject<float>(),
+                            _ when parameter.ParameterType == typeof(double) => argument?.ToObject<double>(),
+                            _ when parameter.ParameterType == typeof(bool) => argument?.ToObject<bool>(),
+                            _ when parameter.ParameterType.IsEnum => Enum.Parse(parameter.ParameterType, argument?.ToString()),
+                            _ when parameter.ParameterType.IsArray => argument?.ToObject(parameter.ParameterType),
+                            _ => throw new ArgumentOutOfRangeException()
+                        };
+
+                        parameters.Add(value);
+                    }
+
+                    try
+                    {
+                        var result = tool.Invoke(null, parameters.ToArray());
+                        var contents = ToContent(result).ToArray();
+                        source.SetResult(new JsonRpcSuccessResponse<CallToolResults> { JsonRpc = "2.0", Id = request.Id, Result = new CallToolResults { Content = contents } });
+                    }
+                    catch (Exception e)
+                    {
+                        source.SetResult(new JsonRpcErrorResponse<ErrorAboutTool> { JsonRpc = "2.0", Id = request.Id, Error = new ErrorResponse<ErrorAboutTool> { Code = -32000, Message = $"Tool execution failed: {e.Message}", Data = new ErrorAboutTool { ToolName = tool.Name } } });
+                    }
+
+                    c:
+                    continue;
+                }
+            }
         }
     }
 }
