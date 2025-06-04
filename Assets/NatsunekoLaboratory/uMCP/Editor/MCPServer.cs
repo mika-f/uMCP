@@ -293,8 +293,20 @@ namespace NatsunekoLaboratory.uMCP
                     try
                     {
                         var result = tool.Invoke(null, parameters.ToArray());
-                        var contents = ToContent(result).ToArray();
-                        source.SetResult(new JsonRpcSuccessResponse<CallToolResults> { JsonRpc = "2.0", Id = request.Id, Result = new CallToolResults { Content = contents } });
+                        if (result is IErrorResult error)
+                        {
+                            source.SetResult(new JsonRpcErrorResponse<ErrorAboutTool>
+                            {
+                                JsonRpc = "2.0",
+                                Id = request.Id,
+                                Error = new ErrorResponse<ErrorAboutTool> { Code = -32000, Message = error.Error, Data = new ErrorAboutTool { ToolName = tool.Name } }
+                            });
+                        }
+                        else
+                        {
+                            var contents = ToContent(result).ToArray();
+                            source.SetResult(new JsonRpcSuccessResponse<CallToolResults> { JsonRpc = "2.0", Id = request.Id, Result = new CallToolResults { Content = contents } });
+                        }
                     }
                     catch (Exception e)
                     {
