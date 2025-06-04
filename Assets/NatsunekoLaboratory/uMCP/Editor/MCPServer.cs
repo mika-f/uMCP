@@ -36,7 +36,7 @@ namespace NatsunekoLaboratory.uMCP
         private static bool _isRunning;
         private static readonly ConcurrentDictionary<long, (JsonRpcRequest<JObject> Object, TaskCompletionSource<JsonRpcResponse> TaskCompletionSource)> _queue = new();
         private static readonly object LockObj = new();
-        private static readonly List<MethodInfo> _tools;
+        private static readonly List<MethodInfo> Tools;
 
         private static readonly JsonSerializerSettings SerializerSettings = new()
         {
@@ -46,7 +46,7 @@ namespace NatsunekoLaboratory.uMCP
         static UnityAnimationMcp()
         {
             var types = Assembly.GetAssembly(typeof(ToolList)).DefinedTypes.Where(w => w.GetCustomAttribute<McpServerToolTypeAttribute>() != null).ToList();
-            _tools = types.SelectMany(w => w.GetMethods().Where(v => v.GetCustomAttribute<McpServerToolAttribute>() != null)).ToList();
+            Tools = types.SelectMany(w => w.GetMethods().Where(v => v.GetCustomAttribute<McpServerToolAttribute>() != null)).ToList();
 
             StartServer();
             EditorApplication.quitting += StopServer;
@@ -236,7 +236,7 @@ namespace NatsunekoLaboratory.uMCP
                     var source = item.Value.TaskCompletionSource;
                     _queue.TryRemove(item.Key, out _);
 
-                    var tool = _tools.FirstOrDefault(w => w.Name == request.Params["name"]?.ToString());
+                    var tool = Tools.FirstOrDefault(w => w.Name == request.Params["name"]?.ToString());
                     if (tool == null)
                     {
                         source.SetResult(new JsonRpcErrorResponse<ErrorAboutTool>
