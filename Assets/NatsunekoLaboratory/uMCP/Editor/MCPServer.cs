@@ -181,7 +181,7 @@ namespace NatsunekoLaboratory.uMCP
 
         private static async Task<JsonRpcResponse> HandleToolListRequest(JsonRpcRequest<JObject> request)
         {
-            var result = await ToolList.CreateAsync();
+            var result = await ToolList.CreateAsync(Tools);
             return new JsonRpcSuccessResponse<ToolList> { JsonRpc = "2.0", Id = request.Id, Result = result };
         }
 

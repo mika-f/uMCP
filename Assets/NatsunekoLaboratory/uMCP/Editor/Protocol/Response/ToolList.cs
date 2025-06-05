@@ -55,37 +55,38 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Response
             return schema;
         }
 
-        public static async Task<ToolList> CreateAsync()
+        public static async Task<ToolList> CreateAsync(List<MethodInfo> tools)
         {
-            var types = Assembly.GetAssembly(typeof(ToolList)).DefinedTypes.Where(w => w.HasCustomAttribute<McpServerToolTypeAttribute>()).ToList();
-            var tools = types.SelectMany(w => w.GetMethods().Where(v => v.HasCustomAttribute<McpServerToolAttribute>()))
-                             .Select(w =>
-                             {
-                                 var schema = new JsonSchema { Type = JsonSchemaType.Object };
-                                 schema.Properties = new Dictionary<string, JsonSchema>();
-                                 foreach (var parameter in w.GetParameters())
-                                 {
-                                     var s = GenerateFromParameterInfo(parameter);
-
-                                     schema.Properties.Add(parameter.Name, s);
-
-                                     if (parameter.HasCustomAttribute<RequiredAttribute>())
-                                         schema.Required.Add(parameter.Name);
-                                 }
-
-
-                                 return new Tool
-                                 {
-                                     Name = w.GetCustomAttribute<McpServerToolAttribute>().Name ?? w.Name,
-                                     Description = w.GetCustomAttribute<DescriptionAttribute>().Description ?? "",
-                                     InputSchema = schema
-                                 };
-                             })
-                             .ToList();
-
             return new ToolList
             {
                 Tools = tools
+                        .Select(w =>
+                        {
+                            var schema = new JsonSchema
+                            {
+                                Type = JsonSchemaType.Object,
+                                Properties = new Dictionary<string, JsonSchema>()
+                            };
+
+                            foreach (var parameter in w.GetParameters())
+                            {
+                                var s = GenerateFromParameterInfo(parameter);
+
+                                schema.Properties.Add(parameter.Name, s);
+
+                                if (parameter.HasCustomAttribute<RequiredAttribute>())
+                                    schema.Required.Add(parameter.Name);
+                            }
+
+
+                            return new Tool
+                            {
+                                Name = w.GetCustomAttribute<McpServerToolAttribute>().Name ?? w.Name,
+                                Description = w.GetCustomAttribute<DescriptionAttribute>().Description ?? "",
+                                InputSchema = schema
+                            };
+                        })
+                        .ToList()
             };
         }
     }
