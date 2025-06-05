@@ -118,7 +118,7 @@ namespace NatsunekoLaboratory.uMCP
                         response.KeepAlive = true;
 
                         if (body != null)
-                            System.Diagnostics.Debug.WriteLine(JsonConvert.SerializeObject(body));
+                            System.Diagnostics.Debug.WriteLine($"[server <- client]: {JsonConvert.SerializeObject(body)}");
 
                         var stream = response.OutputStream;
 
@@ -213,6 +213,8 @@ namespace NatsunekoLaboratory.uMCP
         private static async Task SendResponse(Stream stream, object obj)
         {
             var json = JsonConvert.SerializeObject(obj, SerializerSettings);
+            System.Diagnostics.Debug.WriteLine($"[client <- server]: {json}");
+
             var data = Encoding.UTF8.GetBytes($"data: {json}\n\n");
             await stream.WriteAsync(data, 0, data.Length);
             await stream.FlushAsync();
