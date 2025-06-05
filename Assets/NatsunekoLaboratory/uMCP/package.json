@@ -1,0 +1,7 @@
+{
+  "name": "com.natsuneko.u-mcp",
+  "version": "1.0.0",
+  "displayName": "uMCP",
+  "description": "uMCP is a server implementation of the MCP protocol, designed for working with the AI in Unity.",
+  "unity": "6000.0"
+}
