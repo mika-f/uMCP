@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -15,6 +16,8 @@ using UnityEditor;
 using UnityEditor.Animations;
 
 using UnityEngine;
+
+using Object = UnityEngine.Object;
 
 namespace NatsunekoLaboratory.uMCP.Protocol.Tools
 {
@@ -40,52 +43,54 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
 
         [McpServerTool]
         [Description("create an asset, if the parent directory is not exists, create with one")]
-        public static ITextResult CreateAsset([Required] [Description("path to create the asset at")] string path, [Required] [Description("type of the asset to create")] string type)
+        public static IToolResult CreateAsset([Required] [Description("path to create the asset at")] [StringIsNotNullOrEmpty] string path, [Required] [Description("type of the asset to create")] [StringIsNotNullOrEmpty] string type)
         {
-            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(type))
-                return new TextResult("Path and type cannot be empty.");
-
             CreateParentDirectoryIfNotExists(path);
 
-            switch (type)
+            try
             {
-                case "AnimatorController":
-                    var animatorController = AnimatorController.CreateAnimatorControllerAtPath(path);
-                    if (animatorController == null)
-                        return new TextResult($"Failed to create AnimatorController at: {path}");
-                    AssetDatabase.SaveAssets();
-                    break;
+                switch (type)
+                {
+                    case "AnimatorController":
+                        var animatorController = AnimatorController.CreateAnimatorControllerAtPath(path);
+                        if (animatorController == null)
+                            throw new Exception();
+                        AssetDatabase.SaveAssets();
+                        break;
 
-                case "AnimationClip":
-                    var animationClip = new AnimationClip();
-                    AssetDatabase.CreateAsset(animationClip, path);
-                    break;
+                    case "AnimationClip":
+                        var animationClip = new AnimationClip();
+                        AssetDatabase.CreateAsset(animationClip, path);
+                        break;
 
-                default:
-                    var asset = ScriptableObject.CreateInstance(type);
-                    if (asset == null)
-                        return new TextResult($"Failed to create asset of type: {type}");
+                    default:
+                        var asset = ScriptableObject.CreateInstance(type);
+                        if (asset == null)
+                            throw new Exception();
 
-                    AssetDatabase.CreateAsset(asset, path);
-                    break;
+                        AssetDatabase.CreateAsset(asset, path);
+                        break;
+                }
+            }
+            catch
+            {
+                return new ErrorResult($"failed to create asset of type \"{type}\" at {path}");
             }
 
             ReloadEditor();
 
-            return new TextResult($"Asset created at: {path}");
+            return new TextResult($"asset created at: {path}");
         }
 
         [McpServerTool]
         [Description("delete an asset")]
-        public static ITextResult DeleteAsset([Required] [Description("path to the asset to delete")] string path)
+        public static IToolResult DeleteAsset([Required] [Description("path to the asset to delete")] [StringIsNotNullOrEmpty] string path)
         {
-            if (string.IsNullOrWhiteSpace(path))
-                return new TextResult("Path cannot be empty.");
             if (!AssetDatabase.DeleteAsset(path))
-                return new TextResult($"Failed to delete asset at: {path}");
+                return new ErrorResult($"failed to delete asset at: {path}");
 
             ReloadEditor();
-            return new TextResult($"Asset deleted at: {path}");
+            return new TextResult($"asset deleted at: {path}");
         }
 
         [McpServerTool]

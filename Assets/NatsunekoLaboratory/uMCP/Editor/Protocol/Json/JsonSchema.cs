@@ -15,7 +15,7 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Json
 
         [JsonProperty("properties")]
         [CanBeNull]
-        public Dictionary<string, JsonSchema> Properties { get; set; } = new();
+        public Dictionary<string, JsonSchema> Properties { get; set; }
 
         [JsonProperty("items")]
         [CanBeNull]
