@@ -289,6 +289,21 @@ namespace NatsunekoLaboratory.uMCP
                             _ => throw new ArgumentOutOfRangeException()
                         };
 
+                        if (parameter.HasCustomAttribute<ValidatedParameterAttributeBase>())
+                            foreach (var validator in parameter.GetCustomAttributes<ValidatedParameterAttributeBase>())
+                                if (!validator.Validate(value, out var error))
+                                    source.SetResult(new JsonRpcErrorResponse<ErrorAboutTool>
+                                    {
+                                        JsonRpc = "2.0",
+                                        Id = request.Id,
+                                        Error = new ErrorResponse<ErrorAboutTool>
+                                        {
+                                            Code = -32000,
+                                            Message = $"Validation failed for parameter '{parameter.Name}': {error.Error}",
+                                            Data = new ErrorAboutTool { ToolName = tool.Name }
+                                        }
+                                    });
+
                         parameters.Add(value);
                     }
 
