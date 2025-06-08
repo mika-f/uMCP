@@ -1,5 +1,8 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
 using System.Linq;
+
+using JetBrains.Annotations;
 
 using NatsunekoLaboratory.uMCP.Protocol.Abstractions;
 using NatsunekoLaboratory.uMCP.Protocol.Attributes;
@@ -11,6 +14,9 @@ using UnityEditor.SceneManagement;
 
 using UnityEngine;
 using UnityEngine.SceneManagement;
+
+using Component = UnityEngine.Component;
+using LightType = UnityEngine.LightType;
 
 namespace NatsunekoLaboratory.uMCP.Protocol.Tools
 {
@@ -65,6 +71,97 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             return hierarchy.Select(w => new TextResult(JsonConvert.SerializeObject(w))).ToArray<ITextResult>();
         }
 
+        [McpServerTool]
+        [Description("create a new object in hierarchy")]
+        public static IToolResult CreateObject(
+            [Required] [Description("the path for creating a new GameObject")] [StringIsNotNullOrEmpty]
+            string path,
+            [Required] [Description("the type for creating a new GameObject, such as GameObject, Directional Light, Particle System")] [StringIsNotNullOrEmpty]
+            string type
+        )
+        {
+            Transform obj = null;
+            var name = path.Split("/").Last();
+            try
+            {
+                switch (type)
+                {
+                    // GameObject
+                    case "GameObject":
+                        obj = new GameObject(name).transform;
+                        break;
+
+                    // Primitives
+                    case "Capsule":
+                        obj = GameObject.CreatePrimitive(PrimitiveType.Capsule).transform;
+                        break;
+
+                    case "Cube":
+                        obj = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+                        break;
+
+                    case "Cylinder":
+                        obj = GameObject.CreatePrimitive(PrimitiveType.Cylinder).transform;
+                        break;
+
+                    case "Plane":
+                        obj = GameObject.CreatePrimitive(PrimitiveType.Plane).transform;
+                        break;
+
+                    case "Quad":
+                        obj = GameObject.CreatePrimitive(PrimitiveType.Quad).transform;
+                        break;
+
+                    case "Sphere":
+                        obj = GameObject.CreatePrimitive(PrimitiveType.Sphere).transform;
+                        break;
+
+                    // Lights
+                    case "DirectionalLight":
+                        obj = CreateLight(name, LightType.Directional);
+                        break;
+
+                    case "SpotLight":
+                        obj = CreateLight(name, LightType.Spot);
+                        break;
+
+                    case "PointLight":
+                        obj = CreateLight(name, LightType.Point);
+                        break;
+
+                    case "AreaLight":
+                        obj = CreateLight(name, LightType.Rectangle);
+                        break;
+
+                    // Effects
+                    case "ParticleSystem":
+                        obj = CreateAttachedComponent<ParticleSystem>(name);
+                        break;
+
+                    case "ParticleSystem Force Shield":
+                        obj = CreateAttachedComponent<ParticleSystemForceField>(name);
+                        break;
+
+                    default:
+                        throw new Exception();
+                }
+            }
+            catch
+            {
+                return new ErrorResult($"failed to create a new GameObject<{type}> as the {path}");
+            }
+
+            if (obj && path.Contains("/"))
+            {
+                var transform = FindGameObjectAtThePath(string.Join("/", path.Split("/").SkipLast(1)));
+                if (transform)
+                    obj.parent = transform;
+            }
+
+            SaveScene();
+            return new TextResult($"successfully create a new GameObject<{type}> as the {path}");
+        }
+
         private static object GetHierarchyTree(GameObject gameObject)
         {
             var children = gameObject.transform.Cast<Transform>().Select(child => GetHierarchyTree(child.gameObject)).ToArray();
@@ -98,6 +195,35 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
                 },
                 children
             };
+        }
+
+        [CanBeNull]
+        private static Transform FindGameObjectAtThePath(string path)
+        {
+            var scene = SceneManager.GetActiveScene();
+            var gameObjects = scene.GetRootGameObjects();
+            var root = path.Split("/");
+            var current = gameObjects.FirstOrDefault(w => w.name == root[0]);
+            var rest = string.Join("/", root.Skip(1));
+
+            return current?.transform.Find(rest);
+        }
+
+        private static Transform CreateLight(string name, LightType type)
+        {
+            var go = new GameObject(name);
+            var light = go.AddComponent<Light>();
+            light.type = type;
+
+            return go.transform;
+        }
+
+        private static Transform CreateAttachedComponent<T>(string name) where T : Component
+        {
+            var go = new GameObject(name);
+            go.AddComponent<T>();
+
+            return go.transform;
         }
     }
 }
