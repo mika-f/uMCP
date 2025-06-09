@@ -7,6 +7,7 @@ It is a minimalistic and efficient server that can be used to connect AI agents 
 
 - **Safety**: uMCP does not allow the AI ​​to execute arbitrary code, and any and all operations can only be performed through pre-authorized operations.
 - **Extensible**: uMCP is designed to be easily extensible, allowing you to add your own custom commands and operations via `McpServerToolType` and `McpServerTool` attribute.
+  - You can find examples in the `Assets/NatsunekoLaboratory/VMCP` directory.
 
 ## How it works (What is different from other MCP implementations)
 
@@ -21,7 +22,7 @@ Your MCP Client <-- Streamable HTTP --> uMCP Server
 
 ### Prerequisites
 
-- Unity Editor: Version 6000.1 LTS or newer.
+- Unity Editor: Version 2022.3 LTS or newer.
 - The MCP client must support Streamable HTTP (e.g., VSCode Agent Mode, Cursor, CLINE, etc.).
 
 ### 1. Install the UnityPackage

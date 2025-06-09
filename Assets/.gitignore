@@ -1,6 +1,7 @@
 Scenes/
 DefaultVolumeProfile*
 SerializedUdonPrograms*
-UdonSharp*
+UdonSharp/
+UdonSharp.meta
 UniversalRenderPipeline*
 XR*

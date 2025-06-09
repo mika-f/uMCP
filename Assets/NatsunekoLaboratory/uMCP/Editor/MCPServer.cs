@@ -45,8 +45,15 @@ namespace NatsunekoLaboratory.uMCP
 
         static UnityAnimationMcp()
         {
-            var types = Assembly.GetAssembly(typeof(ToolList)).DefinedTypes.Where(w => w.GetCustomAttribute<McpServerToolTypeAttribute>() != null).ToList();
+            var types = AppDomain.CurrentDomain.GetAssemblies().SelectMany(w => w.DefinedTypes.Where(w => w.GetCustomAttribute<McpServerToolTypeAttribute>() != null)).ToList();
             Tools = types.SelectMany(w => w.GetMethods().Where(v => v.GetCustomAttribute<McpServerToolAttribute>() != null)).ToList();
+
+            var sb = new StringBuilder();
+            sb.AppendLine("The following MCP Tools has been activated:");
+            foreach (var info in Tools)
+                sb.AppendLine($"{info.DeclaringType?.FullName}#{info.Name}");
+
+            Debug.Log(sb.ToString());
 
             StartServer();
             EditorApplication.quitting += StopServer;

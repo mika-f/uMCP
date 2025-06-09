@@ -11,6 +11,7 @@ using NatsunekoLaboratory.uMCP.Protocol.Interfaces;
 
 using Newtonsoft.Json;
 
+using UnityEditor;
 using UnityEditor.SceneManagement;
 
 using UnityEngine;
@@ -173,6 +174,23 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             }
 
             return new ErrorResult("could not find GameObject");
+        }
+
+        [McpServerTool]
+        [Description("create prefab to prefabPath of hierarchyPath")]
+        public static IToolResult CreatePrefab([Required] [Description("the path for GameObject that contains in Prefab")] string hierarchyPath, [Required] [Description("the path for creating a new prefab")] [StringIsNotNullOrEmpty] string prefabPath)
+        {
+            var obj = FindGameObjectAtThePath(hierarchyPath);
+            if (obj)
+            {
+                var prefab = PrefabUtility.SaveAsPrefabAsset(obj.gameObject, prefabPath);
+                if (prefab)
+                    return new TextResult($"successfully created a new prefab at {prefabPath}");
+
+                return new ErrorResult($"failed to create a new prefab at {prefabPath}");
+            }
+
+            return new ErrorResult($"the specified path ({hierarchyPath}) not found");
         }
 
         private static object GetHierarchyTree(GameObject gameObject)
