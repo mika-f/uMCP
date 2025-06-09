@@ -95,26 +95,32 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
                     // Primitives
                     case "Capsule":
                         obj = GameObject.CreatePrimitive(PrimitiveType.Capsule).transform;
+                        obj.gameObject.name = name;
                         break;
 
                     case "Cube":
                         obj = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+                        obj.gameObject.name = name;
                         break;
 
                     case "Cylinder":
                         obj = GameObject.CreatePrimitive(PrimitiveType.Cylinder).transform;
+                        obj.gameObject.name = name;
                         break;
 
                     case "Plane":
                         obj = GameObject.CreatePrimitive(PrimitiveType.Plane).transform;
+                        obj.gameObject.name = name;
                         break;
 
                     case "Quad":
                         obj = GameObject.CreatePrimitive(PrimitiveType.Quad).transform;
+                        obj.gameObject.name = name;
                         break;
 
                     case "Sphere":
                         obj = GameObject.CreatePrimitive(PrimitiveType.Sphere).transform;
+                        obj.gameObject.name = name;
                         break;
 
                     // Lights
@@ -170,8 +176,8 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             var go = FindGameObjectAtThePath(path);
             if (go)
             {
-                go.transform.position = transform.Position.ToVector3();
-                go.transform.rotation = Quaternion.Euler(transform.Rotation.ToVector3());
+                go.transform.localPosition = transform.Position.ToVector3();
+                go.transform.localEulerAngles = transform.Rotation.ToVector3();
                 go.transform.localScale = transform.Scale.ToVector3();
 
                 return new TextResult($"{path}' transform edited");
