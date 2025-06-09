@@ -28,18 +28,19 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
     [McpServerToolType]
     public static class SceneManagement
     {
-        public static Dictionary<string, Func<string, UnityEngine.Transform>> Factory => new()
+        public static Dictionary<string, Func<string, UnityEngine.Transform>> Factories => new()
         {
             // GameObject
             { "GameObject", path => new GameObject(path).transform },
 
-            // 3D
+            // 3D Object
             { "Capsule", path => CreatePrimitive(path, PrimitiveType.Capsule) },
             { "Cube", path => CreatePrimitive(path, PrimitiveType.Cube) },
             { "Cylinder", path => CreatePrimitive(path, PrimitiveType.Cylinder) },
             { "Plane", path => CreatePrimitive(path, PrimitiveType.Plane) },
             { "Quad", path => CreatePrimitive(path, PrimitiveType.Quad) },
             { "Sphere", path => CreatePrimitive(path, PrimitiveType.Sphere) },
+            { "Terrain", CreateTerrain },
 
             // Effects
             { "ParticleSystem", CreateAttachedComponent<ParticleSystem> },
@@ -106,18 +107,29 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
 
         [McpServerTool]
         [Description("get hierarchy tree on active scene")]
-        public static ITextResult[] GetHierarchy()
+        public static ITextResult[] GetHierarchy([Description("root path of finding GameObject, if root is null or whitespace, find by scene. otherwise; find by children")] string root)
         {
             var scene = SceneManager.GetActiveScene();
-            var gameObjects = scene.GetRootGameObjects();
-            var hierarchy = gameObjects.Select(GetHierarchyTree).ToList();
 
-            return hierarchy.Select(w => new TextResult(JsonConvert.SerializeObject(w))).ToArray<ITextResult>();
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                var gameObjects = scene.GetRootGameObjects();
+                var hierarchy = gameObjects.Select(GetHierarchyTree).ToList();
+
+                return hierarchy.Select(w => new TextResult(JsonConvert.SerializeObject(w))).ToArray<ITextResult>();
+            }
+            else
+            {
+                var go = FindGameObjectAtThePath(root);
+                var hierarchy = GetHierarchyTree(go.gameObject);
+
+                return new ITextResult[] { new TextResult(JsonConvert.SerializeObject(hierarchy)) };
+            }
         }
 
         [McpServerTool]
         [Description("create a new object in hierarchy")]
-        public static IToolResult CreateObject(
+        public static IToolResult CreateGameObject(
             [Required] [Description("the path for creating a new GameObject")] [StringIsNotNullOrEmpty]
             string path,
             [Required] [Description("the type for creating a new GameObject, such as GameObject, Directional Light, Particle System")] [StringIsNotNullOrEmpty]
@@ -127,7 +139,7 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             var name = path.Split("/").Last();
             var normalizedTypeName = type.Replace(" ", "");
 
-            if (Factory.TryGetValue(normalizedTypeName, out var factory))
+            if (Factories.TryGetValue(normalizedTypeName, out var factory))
             {
                 var obj = factory.Invoke(name);
 
@@ -142,7 +154,7 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
                 return new TextResult($"successfully create a new GameObject<{type}> as the {path}");
             }
 
-            return new TextResult($"failed to create a new GameObject, available factories are {string.Join(", ", Factory.Keys)}.");
+            return new TextResult($"failed to create a new GameObject, available factories are {string.Join(", ", Factories.Keys)}.");
         }
 
         [McpServerTool(Destructive = true, RequiresHumanApproval = true)]
@@ -261,6 +273,14 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
         {
             var go = new GameObject(name);
             go.AddComponent<T>();
+
+            return go.transform;
+        }
+
+        private static UnityEngine.Transform CreateTerrain(string name)
+        {
+            var data = new TerrainData();
+            var go = Terrain.CreateTerrainGameObject(data);
 
             return go.transform;
         }

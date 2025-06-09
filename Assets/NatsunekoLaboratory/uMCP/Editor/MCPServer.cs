@@ -51,7 +51,7 @@ namespace NatsunekoLaboratory.uMCP
             var sb = new StringBuilder();
             sb.AppendLine("The following MCP Tools has been activated:");
             foreach (var info in Tools)
-                sb.AppendLine($"{info.DeclaringType?.FullName}#{info.Name}");
+                sb.AppendLine(info.Name);
 
             Debug.Log(sb.ToString());
 

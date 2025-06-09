@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -24,6 +25,24 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
     [McpServerToolType]
     public class AssetManagement
     {
+        public static Dictionary<string, Action<string>> Factories => new()
+        {
+            // Animations
+            { "AnimatorController", CreateAnimatorController },
+            { "AnimationClip", CreateAnimationClip }
+        };
+
+        private static void CreateAnimatorController(string path)
+        {
+            AnimatorController.CreateAnimatorControllerAtPath(path);
+        }
+
+        private static void CreateAnimationClip(string path)
+        {
+            var animationClip = new AnimationClip();
+            AssetDatabase.CreateAsset(animationClip, path);
+        }
+
         private static void CreateParentDirectoryIfNotExists(string path)
         {
             var directory = Path.GetDirectoryName(path);
@@ -47,35 +66,21 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
         {
             CreateParentDirectoryIfNotExists(path);
 
-            try
-            {
-                switch (type)
+            if (Factories.TryGetValue(type, out var factory))
+                factory(path);
+            else
+                try
                 {
-                    case "AnimatorController":
-                        var animatorController = AnimatorController.CreateAnimatorControllerAtPath(path);
-                        if (animatorController == null)
-                            throw new Exception();
-                        AssetDatabase.SaveAssets();
-                        break;
+                    var asset = ScriptableObject.CreateInstance(type);
+                    if (asset == null)
+                        throw new Exception();
 
-                    case "AnimationClip":
-                        var animationClip = new AnimationClip();
-                        AssetDatabase.CreateAsset(animationClip, path);
-                        break;
-
-                    default:
-                        var asset = ScriptableObject.CreateInstance(type);
-                        if (asset == null)
-                            throw new Exception();
-
-                        AssetDatabase.CreateAsset(asset, path);
-                        break;
+                    AssetDatabase.CreateAsset(asset, path);
                 }
-            }
-            catch
-            {
-                return new ErrorResult($"failed to create asset of type \"{type}\" at {path}");
-            }
+                catch
+                {
+                    return new TextResult($"failed to create a new Asset, available factories are {string.Join(", ", Factories.Keys)}.");
+                }
 
             ReloadEditor();
 
@@ -95,7 +100,7 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
 
         [McpServerTool]
         [Description("list the assets of the project, with optional filtering by type, or name")]
-        public static ITextResult[] GetAsset([Required] [Description("filter by name")] string name, [Required] [CanBeNull] [Description("filter by type")] string type)
+        public static ITextResult[] FindAsset([Required] [Description("filter by name")] string name, [Required] [CanBeNull] [Description("filter by type")] string type)
         {
             //  if both name and type are empty, return all assets with their path and guid
             if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(type))
