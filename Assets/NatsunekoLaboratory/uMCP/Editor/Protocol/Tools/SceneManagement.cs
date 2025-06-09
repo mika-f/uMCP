@@ -205,6 +205,52 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             return new ErrorResult($"the specified path ({hierarchyPath}) not found");
         }
 
+        [McpServerTool]
+        [Description("attach component to specified GameObject")]
+        public static IToolResult AttachComponent([Required] [Description("the path for GameObject that contains in Prefab")] [StringIsNotNullOrEmpty] string path, [Required] [Description("the fullly qualified type name of component to attach")] [StringIsNotNullOrEmpty] string type)
+        {
+            var obj = FindGameObjectAtThePath(path);
+            if (obj)
+            {
+                var componentType = Type.GetType(type);
+                if (componentType != null && typeof(Component).IsAssignableFrom(componentType))
+                {
+                    obj.gameObject.AddComponent(componentType);
+                    return new TextResult($"successfully attached {type} to {path}");
+                }
+
+                return new ErrorResult($"the specified type ({type}) is not a valid Component type");
+            }
+
+            return new ErrorResult($"the specified path ({path}) not found");
+        }
+
+        [McpServerTool(Destructive = true, RequiresHumanApproval = true)]
+        [Description("detach component from specified GameObject")]
+        public static IToolResult DetachComponent([Required] [Description("the path for GameObject that contains in Prefab")] [StringIsNotNullOrEmpty] string path, [Required] [Description("the fullly qualified type name of component to detach")] [StringIsNotNullOrEmpty] string type)
+        {
+            var obj = FindGameObjectAtThePath(path);
+            if (obj)
+            {
+                var componentType = Type.GetType(type);
+                if (componentType != null && typeof(Component).IsAssignableFrom(componentType))
+                {
+                    var component = obj.GetComponent(componentType);
+                    if (component)
+                    {
+                        Object.DestroyImmediate(component);
+                        return new TextResult($"successfully detached {type} from {path}");
+                    }
+
+                    return new ErrorResult($"the specified component ({type}) not found on {path}");
+                }
+
+                return new ErrorResult($"the specified type ({type}) is not a valid Component type");
+            }
+
+            return new ErrorResult($"the specified path ({path}) not found");
+        }
+
         private static object GetHierarchyTree(GameObject gameObject)
         {
             var children = gameObject.transform.Cast<UnityEngine.Transform>().Select(child => GetHierarchyTree(child.gameObject)).ToArray();
