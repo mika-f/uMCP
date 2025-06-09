@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 
@@ -14,9 +15,11 @@ using UnityEditor.SceneManagement;
 
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Video;
 
 using Component = UnityEngine.Component;
 using LightType = UnityEngine.LightType;
+using Object = UnityEngine.Object;
 using Transform = NatsunekoLaboratory.uMCP.Models.Transform;
 
 namespace NatsunekoLaboratory.uMCP.Protocol.Tools
@@ -24,6 +27,45 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
     [McpServerToolType]
     public static class SceneManagement
     {
+        public static Dictionary<string, Func<string, UnityEngine.Transform>> Factory => new()
+        {
+            // GameObject
+            { "GameObject", path => new GameObject(path).transform },
+
+            // 3D
+            { "Capsule", path => CreatePrimitive(path, PrimitiveType.Capsule) },
+            { "Cube", path => CreatePrimitive(path, PrimitiveType.Cube) },
+            { "Cylinder", path => CreatePrimitive(path, PrimitiveType.Cylinder) },
+            { "Plane", path => CreatePrimitive(path, PrimitiveType.Plane) },
+            { "Quad", path => CreatePrimitive(path, PrimitiveType.Quad) },
+            { "Sphere", path => CreatePrimitive(path, PrimitiveType.Sphere) },
+
+            // Effects
+            { "ParticleSystem", CreateAttachedComponent<ParticleSystem> },
+            { "ParticleSystemForceShield", CreateAttachedComponent<ParticleSystemForceField> },
+            { "Trail", CreateAttachedComponent<TrailRenderer> },
+            { "Line", CreateAttachedComponent<LineRenderer> },
+
+            // Lights
+            { "DirectionalLight", path => CreateLight(path, LightType.Directional) },
+            { "SpotLight", path => CreateLight(path, LightType.Spot) },
+            { "PointLight", path => CreateLight(path, LightType.Point) },
+            { "AreaLight", path => CreateLight(path, LightType.Rectangle) },
+            { "ReflectionProbe", CreateAttachedComponent<ReflectionProbe> },
+
+            // Audio
+            { "AudioSource", CreateAttachedComponent<AudioSource> },
+            { "AudioListener", CreateAttachedComponent<AudioReverbZone> },
+
+            // Video
+            { "VideoPlayer", CreateAttachedComponent<VideoPlayer> },
+
+            // UI
+
+            // Camera
+            { "Camera", CreateAttachedComponent<Camera> }
+        };
+
         [McpServerTool]
         [Description("open the specified scene")]
         public static ITextResult OpenScene([Required] [StringIsNotNullOrEmpty] string sceneName)
@@ -81,97 +123,44 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             string type
         )
         {
-            UnityEngine.Transform obj = null;
             var name = path.Split("/").Last();
-            try
+            var normalizedTypeName = type.Replace(" ", "");
+
+            if (Factory.TryGetValue(normalizedTypeName, out var factory))
             {
-                switch (type.Replace(" ", ""))
+                var obj = factory.Invoke(name);
+
+                if (obj && path.Contains("/"))
                 {
-                    // GameObject
-                    case "GameObject":
-                        obj = new GameObject(name).transform;
-                        break;
-
-                    // Primitives
-                    case "Capsule":
-                        obj = GameObject.CreatePrimitive(PrimitiveType.Capsule).transform;
-                        obj.gameObject.name = name;
-                        break;
-
-                    case "Cube":
-                        obj = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
-                        obj.gameObject.name = name;
-                        break;
-
-                    case "Cylinder":
-                        obj = GameObject.CreatePrimitive(PrimitiveType.Cylinder).transform;
-                        obj.gameObject.name = name;
-                        break;
-
-                    case "Plane":
-                        obj = GameObject.CreatePrimitive(PrimitiveType.Plane).transform;
-                        obj.gameObject.name = name;
-                        break;
-
-                    case "Quad":
-                        obj = GameObject.CreatePrimitive(PrimitiveType.Quad).transform;
-                        obj.gameObject.name = name;
-                        break;
-
-                    case "Sphere":
-                        obj = GameObject.CreatePrimitive(PrimitiveType.Sphere).transform;
-                        obj.gameObject.name = name;
-                        break;
-
-                    // Lights
-                    case "DirectionalLight":
-                        obj = CreateLight(name, LightType.Directional);
-                        break;
-
-                    case "SpotLight":
-                        obj = CreateLight(name, LightType.Spot);
-                        break;
-
-                    case "PointLight":
-                        obj = CreateLight(name, LightType.Point);
-                        break;
-
-                    case "AreaLight":
-                        obj = CreateLight(name, LightType.Rectangle);
-                        break;
-
-                    // Effects
-                    case "ParticleSystem":
-                        obj = CreateAttachedComponent<ParticleSystem>(name);
-                        break;
-
-                    case "ParticleSystemForceShield":
-                        obj = CreateAttachedComponent<ParticleSystemForceField>(name);
-                        break;
-
-                    default:
-                        throw new Exception();
+                    var transform = FindGameObjectAtThePath(string.Join("/", path.Split("/").SkipLast(1)));
+                    if (transform)
+                        obj.parent = transform;
                 }
-            }
-            catch
-            {
-                return new ErrorResult($"failed to create a new GameObject<{type}> as the {path}");
+
+                SaveScene();
+                return new TextResult($"successfully create a new GameObject<{type}> as the {path}");
             }
 
-            if (obj && path.Contains("/"))
+            return new TextResult($"failed to create a new GameObject, available factories are {string.Join(", ", Factory.Keys)}.");
+        }
+
+        [McpServerTool(Destructive = true, RequiresHumanApproval = true)]
+        [Description("delete the specified object")]
+        public static IToolResult DeleteObject([Required] [Description("the path for deleting object")] [StringIsNotNullOrEmpty] string path)
+        {
+            var obj = FindGameObjectAtThePath(path);
+            if (obj)
             {
-                var transform = FindGameObjectAtThePath(string.Join("/", path.Split("/").SkipLast(1)));
-                if (transform)
-                    obj.parent = transform;
+                Object.DestroyImmediate(obj.gameObject);
+                return new TextResult($"successfully deleted the GameObject at the {path}");
             }
 
-            SaveScene();
-            return new TextResult($"successfully create a new GameObject<{type}> as the {path}");
+            return new ErrorResult($"the specified path ({path}) not found");
         }
 
         [McpServerTool]
-        [Description("edit transform position, rotation (via euler), and scale of the specified path")]
-        public static IToolResult EditTransform([Required] [Description("the path for editing transform")] [StringIsNotNullOrEmpty] string path, Transform transform)
+        [Description("edit transform position, rotation (by euler), and scale of the specified path")]
+        public static IToolResult EditTransform([Required] [Description("the path for editing transform")] [StringIsNotNullOrEmpty] string path, [Required] Transform transform)
         {
             var go = FindGameObjectAtThePath(path);
             if (go)
@@ -231,6 +220,14 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             var rest = string.Join("/", root.Skip(1));
 
             return current?.transform.Find(rest);
+        }
+
+        private static UnityEngine.Transform CreatePrimitive(string name, PrimitiveType type)
+        {
+            var go = GameObject.CreatePrimitive(type);
+            go.name = name;
+
+            return go.transform;
         }
 
         private static UnityEngine.Transform CreateLight(string name, LightType type)
