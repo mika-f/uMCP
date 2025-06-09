@@ -286,6 +286,7 @@ namespace NatsunekoLaboratory.uMCP
                             _ when parameter.ParameterType == typeof(bool) => argument?.ToObject<bool>(),
                             _ when parameter.ParameterType.IsEnum => Enum.Parse(parameter.ParameterType, argument?.ToString()),
                             _ when parameter.ParameterType.IsArray => argument?.ToObject(parameter.ParameterType),
+                            _ when parameter.ParameterType.IsClass => argument?.ToObject(parameter.ParameterType),
                             _ => throw new ArgumentOutOfRangeException()
                         };
 

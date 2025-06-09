@@ -20,32 +20,64 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Response
 
         private static JsonSchema GenerateFromType(Type t)
         {
-            return new JsonSchema();
-        }
-
-        private static JsonSchema GenerateFromParameterInfo(ParameterInfo pi)
-        {
             var schema = new JsonSchema
             {
-                Type = pi.ParameterType switch
+                Type = t switch
                 {
-                    not null when typeof(string) == pi.ParameterType => JsonSchemaType.String,
-                    not null when typeof(int) == pi.ParameterType => JsonSchemaType.Integer,
-                    not null when typeof(long) == pi.ParameterType => JsonSchemaType.Integer,
-                    not null when typeof(float) == pi.ParameterType => JsonSchemaType.Number,
-                    not null when typeof(double) == pi.ParameterType => JsonSchemaType.Number,
-                    not null when typeof(bool) == pi.ParameterType => JsonSchemaType.Boolean,
-                    not null when pi.ParameterType.IsEnum => JsonSchemaType.String,
-                    not null when pi.ParameterType.IsArray => JsonSchemaType.Array,
+                    not null when typeof(string) == t => JsonSchemaType.String,
+                    not null when typeof(int) == t => JsonSchemaType.Integer,
+                    not null when typeof(long) == t => JsonSchemaType.Integer,
+                    not null when typeof(float) == t => JsonSchemaType.Number,
+                    not null when typeof(double) == t => JsonSchemaType.Number,
+                    not null when typeof(bool) == t => JsonSchemaType.Boolean,
+                    not null when t.IsEnum => JsonSchemaType.String,
+                    not null when t.IsArray => JsonSchemaType.Array,
+                    not null when t.IsClass => JsonSchemaType.Object,
                     _ => throw new ArgumentOutOfRangeException()
                 }
             };
 
-            if (pi.ParameterType.IsEnum) { }
+            if (t.IsEnum) { }
+            else
+            {
+                switch (schema.Type)
+                {
+                    case JsonSchemaType.Array:
+                    {
+                        schema.Items = GenerateFromType(t.GenericTypeArguments[0]);
+                        break;
+                    }
 
-            if (pi.ParameterType.IsArray)
-                schema.Items = GenerateFromType(pi.ParameterType.GenericTypeArguments[0]);
+                    case JsonSchemaType.Object:
+                    {
+                        schema.Properties = new Dictionary<string, JsonSchema>();
+                        foreach (var property in t.GetProperties())
+                        {
+                            var name = property.GetCustomAttribute<JsonPropertyAttribute>()?.PropertyName ?? property.Name;
+                            var innerSchema = GenerateFromType(property.PropertyType);
+                            schema.Properties.Add(name, innerSchema);
 
+                            if (property.GetCustomAttribute<DescriptionAttribute>() != null)
+                            {
+                                var description = property.GetCustomAttribute<DescriptionAttribute>();
+                                innerSchema.Description = description.Description;
+                            }
+
+                            if (property.HasCustomAttribute<RequiredAttribute>())
+                                schema.Required.Add(name);
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            return schema;
+        }
+
+        private static JsonSchema GenerateFromParameterInfo(ParameterInfo pi)
+        {
+            var schema = GenerateFromType(pi.ParameterType);
             if (pi.GetCustomAttribute<DescriptionAttribute>() != null)
             {
                 var description = pi.GetCustomAttribute<DescriptionAttribute>();

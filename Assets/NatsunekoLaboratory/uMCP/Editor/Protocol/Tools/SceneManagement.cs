@@ -17,6 +17,7 @@ using UnityEngine.SceneManagement;
 
 using Component = UnityEngine.Component;
 using LightType = UnityEngine.LightType;
+using Transform = NatsunekoLaboratory.uMCP.Models.Transform;
 
 namespace NatsunekoLaboratory.uMCP.Protocol.Tools
 {
@@ -80,11 +81,11 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             string type
         )
         {
-            Transform obj = null;
+            UnityEngine.Transform obj = null;
             var name = path.Split("/").Last();
             try
             {
-                switch (type)
+                switch (type.Replace(" ", ""))
                 {
                     // GameObject
                     case "GameObject":
@@ -138,7 +139,7 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
                         obj = CreateAttachedComponent<ParticleSystem>(name);
                         break;
 
-                    case "ParticleSystem Force Shield":
+                    case "ParticleSystemForceShield":
                         obj = CreateAttachedComponent<ParticleSystemForceField>(name);
                         break;
 
@@ -162,9 +163,26 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             return new TextResult($"successfully create a new GameObject<{type}> as the {path}");
         }
 
+        [McpServerTool]
+        [Description("edit transform position, rotation (via euler), and scale of the specified path")]
+        public static IToolResult EditTransform([Required] [Description("the path for editing transform")] [StringIsNotNullOrEmpty] string path, Transform transform)
+        {
+            var go = FindGameObjectAtThePath(path);
+            if (go)
+            {
+                go.transform.position = transform.Position.ToVector3();
+                go.transform.rotation = Quaternion.Euler(transform.Rotation.ToVector3());
+                go.transform.localScale = transform.Scale.ToVector3();
+
+                return new TextResult($"{path}' transform edited");
+            }
+
+            return new ErrorResult("could not find GameObject");
+        }
+
         private static object GetHierarchyTree(GameObject gameObject)
         {
-            var children = gameObject.transform.Cast<Transform>().Select(child => GetHierarchyTree(child.gameObject)).ToArray();
+            var children = gameObject.transform.Cast<UnityEngine.Transform>().Select(child => GetHierarchyTree(child.gameObject)).ToArray();
             return new
             {
                 gameObject.name,
@@ -198,7 +216,7 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
         }
 
         [CanBeNull]
-        private static Transform FindGameObjectAtThePath(string path)
+        private static UnityEngine.Transform FindGameObjectAtThePath(string path)
         {
             var scene = SceneManager.GetActiveScene();
             var gameObjects = scene.GetRootGameObjects();
@@ -209,7 +227,7 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             return current?.transform.Find(rest);
         }
 
-        private static Transform CreateLight(string name, LightType type)
+        private static UnityEngine.Transform CreateLight(string name, LightType type)
         {
             var go = new GameObject(name);
             var light = go.AddComponent<Light>();
@@ -218,7 +236,7 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Tools
             return go.transform;
         }
 
-        private static Transform CreateAttachedComponent<T>(string name) where T : Component
+        private static UnityEngine.Transform CreateAttachedComponent<T>(string name) where T : Component
         {
             var go = new GameObject(name);
             go.AddComponent<T>();
