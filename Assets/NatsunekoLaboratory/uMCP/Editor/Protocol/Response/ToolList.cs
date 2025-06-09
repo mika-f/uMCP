@@ -110,12 +110,22 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Response
                                     schema.Required.Add(parameter.Name);
                             }
 
-
+                            var attribute = w.GetCustomAttribute<McpServerToolAttribute>();
                             return new Tool
                             {
-                                Name = w.GetCustomAttribute<McpServerToolAttribute>().Name ?? w.Name,
+                                Name = w.Name,
                                 Description = w.GetCustomAttribute<DescriptionAttribute>().Description ?? "",
-                                InputSchema = schema
+                                InputSchema = schema,
+                                Annotations = new Dictionary<string, object>
+                                {
+                                    { "title", attribute.Name },
+                                    { "readOnlyHint", attribute.Readonly },
+                                    { "destructiveHint", attribute.Destructive },
+                                    { "idempotentHint", attribute.Idempotent },
+                                    { "openWorldHint", attribute.OpenWorld }
+                                    // { "costly", w.GetCustomAttribute<McpServerToolAttribute>().Costly },
+                                    // { "requiresHumanApproval", w.GetCustomAttribute<McpServerToolAttribute>().RequiresHumanApproval }
+                                }
                             };
                         })
                         .ToList()

@@ -13,8 +13,12 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Attributes
 
         public bool Destructive { get; set; } = false;
 
+        public bool Idempotent { get; set; } = false;
+
         public bool Costly { get; set; } = false;
 
         public bool RequiresHumanApproval { get; set; } = false;
+
+        public bool OpenWorld { get; set; } = false;
     }
 }

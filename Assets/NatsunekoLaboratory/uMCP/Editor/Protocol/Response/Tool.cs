@@ -1,4 +1,6 @@
-﻿using NatsunekoLaboratory.uMCP.Protocol.Json;
+﻿using System.Collections.Generic;
+
+using NatsunekoLaboratory.uMCP.Protocol.Json;
 
 using Newtonsoft.Json;
 
@@ -14,5 +16,8 @@ namespace NatsunekoLaboratory.uMCP.Protocol.Response
 
         [JsonProperty("inputSchema")]
         public JsonSchema InputSchema { get; set; }
+
+        [JsonProperty("annotations")]
+        public Dictionary<string, object> Annotations { get; set; }
     }
 }
