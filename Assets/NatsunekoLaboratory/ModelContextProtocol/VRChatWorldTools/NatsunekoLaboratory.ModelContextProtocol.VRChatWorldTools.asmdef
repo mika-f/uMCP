@@ -1,0 +1,23 @@
+{
+    "name": "NatsunekoLaboratory.ModelContextProtocol.VRChatWorldTools",
+    "rootNamespace": "",
+    "references": [
+        "GUID:f1b4186e7ca887f47a5f4612731622a4",
+        "GUID:84265b35cca3905448e623ef3903f0ff",
+        "GUID:3c1bc1267eab5884ebe7f232c09ee0d9",
+        "GUID:627c4d5cd580ddf41bd320e784fe8b9d"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [
+        ""
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

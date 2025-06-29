@@ -1,0 +1,11 @@
+{
+  "name": "com.natsuneko.modelcontextprotocol.vrchat-world-tools",
+  "version": "1.0.0-alpha.1",
+  "displayName": "uMCP",
+  "description": "uMCP is a server implementation of the MCP protocol, designed for working with the AI in Unity. This package provides tools for VRChat worlds.",
+  "unity": "2022.3",
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.natsuneko.modelcontextprotocol.core-framework": "1.0.0-alpha.1"
+  }
+}
