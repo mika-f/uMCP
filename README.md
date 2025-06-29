@@ -7,7 +7,7 @@ It is a minimalistic and efficient server that can be used to connect AI agents 
 
 - **Safety**: uMCP does not allow the AI ​​to execute arbitrary code, and any and all operations can only be performed through pre-authorized operations.
 - **Extensible**: uMCP is designed to be easily extensible, allowing you to add your own custom commands and operations via `McpServerToolType` and `McpServerTool` attribute.
-  - You can find examples in the `Assets/NatsunekoLaboratory/VMCP` directory.
+  - You can find examples in the `Assets/NatsunekoLaboratory/ModelContextProtocol/ManagementTools` directory.
 
 ## How it works (What is different from other MCP implementations)
 
@@ -25,24 +25,51 @@ Your MCP Client <-- Streamable HTTP --> uMCP Server
 - Unity Editor: Version 2022.3 LTS or newer.
 - The MCP client must support Streamable HTTP (e.g., VSCode Agent Mode, Cursor, CLINE, etc.).
 
-### 1. Install the UnityPackage
+### 1. Install the CoreFramework
+
+#### Using Unity Package Manager
+
+1. `openupm add com.natsuneko.modelcontextprotocol.core-framework`
+2. Open your Unity project.
+
+#### Using Git URL
 
 1. Open your Unity project.
 2. Go to `Window > Package Manager`.
 3. Click `+` to `Add package from git URL...`.
 4. Enter the URL:
    ```
-   https://github.com/mika-f/uMCP.git?path=/Assets/NatsunekoLaboratory/uMCP
+   https://github.com/mika-f/uMCP.git?path=/Assets/NatsunekoLaboratory/ModelContextProtocol/CoreFramework
    ```
 5. Click `Add`.
 6. The MCP server automatically starts when you run the Unity project.
 
-### 2. Configure your MCP client
+### 2. Install the Management Tools (and other packages)
+
+#### Using Unity Package Manager
+
+- `openupm add com.natsuneko.modelcontextprotocol.management-tools`
+- `openupm add com.natsuneko.modelcontextprotocol.vrchat-world-tools`
+
+#### Using Git URL
+
+1. Open your Unity project.
+2. Go to `Window > Package Manager`.
+3. Click `+` to `Add package from git URL...`.
+4. Enter the URL:
+   ```
+   https://github.com/mika-f/uMCP.git?path=/Assets/NatsunekoLaboratory/ModelContextProtocol/MagagementTools
+   ```
+5. Click `Add`.
+
+### 3. Configure your MCP client
 
 Connect your MCP client that support Streamable HTTP (VSCode Agent Mode, Cursor, CLINE, etc.) to the MCP server.
 
-```
+```bash
 http://localhost:7225/sse
+# or
+http://localhost:7225/mcp
 ```
 
 Example for VSCode Agent Mode:
@@ -51,7 +78,7 @@ Example for VSCode Agent Mode:
 {
   "servers": {
     "uMCP": {
-      "url": "http://localhost:7225/sse"
+      "url": "http://localhost:7225/mcp"
     }
   }
 }
@@ -71,9 +98,10 @@ You can extend uMCP by creating your own custom commands and operations.
 using System;
 using System.ComponentModel;
 
-using NatsunekoLaboratory.uMCP.Protocol.Attributes;
-using NatsunekoLaboratory.uMCP.Protocol.Abstractions;
-using NatsunekoLaboratory.uMCP.Protocol.Interfaces;
+using NatsunekoLaboratory.ModelContextProtocol.CoreFramework.Attributes;
+using NatsunekoLaboratory.ModelContextProtocol.CoreFramework.Models;
+using NatsunekoLaboratory.ModelContextProtocol.CoreFramework.Protocol.Abstractions;
+using NatsunekoLaboratory.ModelContextProtocol.CoreFramework.Protocol.Interfaces;
 
 namespace NatsunekoLaboratory.Examples.MyCustomCommands
 {
