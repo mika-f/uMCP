@@ -1,7 +1,7 @@
 {
   "name": "com.natsuneko.modelcontextprotocol.core-framework",
-  "version": "1.0.0-alpha.1",
-  "displayName": "uMCP",
+  "version": "1.0.0-alpha.2",
+  "displayName": "uMCP - Core Framework",
   "description": "uMCP is a server implementation of the MCP protocol, designed for working with the AI in Unity. This package is the Core Framework of uMCP. Please install the Management Tools and other packages to use the MCP protocol.",
   "unity": "2022.3",
   "dependencies": {

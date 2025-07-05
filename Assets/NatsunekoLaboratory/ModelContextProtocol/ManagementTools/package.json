@@ -1,11 +1,11 @@
 {
   "name": "com.natsuneko.modelcontextprotocol.management-tools",
-  "version": "1.0.0-alpha.1",
-  "displayName": "uMCP",
+  "version": "1.0.0-alpha.2",
+  "displayName": "uMCP - Management Tools",
   "description": "uMCP is a server implementation of the MCP protocol, designed for working with the AI in Unity. This package provides management tools for uMCP. Asset Management, Scene Management, Window Management, and more.",
   "unity": "2022.3",
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1",
-    "com.natsuneko.modelcontextprotocol.core-framework": "1.0.0-alpha.1"
+    "com.natsuneko.modelcontextprotocol.core-framework": "1.0.0-alpha.2"
   }
 }
